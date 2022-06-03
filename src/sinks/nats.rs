@@ -65,6 +65,7 @@ pub struct NatsSinkConfig {
     url: String,
     tls: Option<TlsEnableableConfig>,
     auth: Option<NatsAuthConfig>,
+    ignore_discovered_urls: Option<bool>,
 }
 
 fn default_name() -> String {
@@ -89,7 +90,8 @@ impl GenerateConfig for NatsSinkConfig {
             encoding.codec = "json"
             connection_name = "vector"
             subject = "from.vector"
-            url = "nats://127.0.0.1:4222""#,
+            url = "nats://127.0.0.1:4222"
+            ignore_discovered_urls = true"#,
         )
         .unwrap()
     }
@@ -125,6 +127,12 @@ impl std::convert::TryFrom<&NatsSinkConfig> for nats::asynk::Options {
 
     fn try_from(config: &NatsSinkConfig) -> Result<Self, Self::Error> {
         from_tls_auth_config(&config.connection_name, &config.auth, &config.tls)
+            .and_then(|op| {
+                Ok(match &config.ignore_discovered_urls {
+                    Some(true) => op.ignore_discovered_urls(),
+                    _ => op
+                })
+            })
     }
 }
 
@@ -306,6 +314,7 @@ mod integration_tests {
             url,
             tls: None,
             auth: None,
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -336,6 +345,7 @@ mod integration_tests {
                     password: "natspass".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         publish_and_check(conf)
@@ -363,6 +373,7 @@ mod integration_tests {
                     password: "wrongpass".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -392,6 +403,7 @@ mod integration_tests {
                     value: "secret".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -421,6 +433,7 @@ mod integration_tests {
                     value: "wrongsecret".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -451,6 +464,7 @@ mod integration_tests {
                     seed: "SUANIRXEZUROTXNFN3TJYMT27K7ZZVMD46FRIHF6KXKS4KGNVBS57YAFGY".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -481,6 +495,7 @@ mod integration_tests {
                     seed: "SBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -512,6 +527,7 @@ mod integration_tests {
                 },
             }),
             auth: None,
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -537,6 +553,7 @@ mod integration_tests {
             url,
             tls: None,
             auth: None,
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -570,6 +587,7 @@ mod integration_tests {
                 },
             }),
             auth: None,
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -601,6 +619,7 @@ mod integration_tests {
                 },
             }),
             auth: None,
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -636,6 +655,7 @@ mod integration_tests {
                     path: "tests/data/nats/nats.creds".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
@@ -671,12 +691,39 @@ mod integration_tests {
                     path: "tests/data/nats/nats-bad.creds".into(),
                 },
             }),
+            ignore_discovered_urls: None,
         };
 
         let r = publish_and_check(conf).await;
         assert!(
             matches!(r, Err(BuildError::Connect { .. })),
             "publish_and_check failed, expected BuildError::Connect, got: {:?}",
+            r
+        );
+    }
+
+    #[tokio::test]
+    async fn nats_ignore_discovered_urls() {
+        trace_init();
+
+        let subject = format!("test-{}", random_string(10));
+        let url =
+            std::env::var("NATS_ADDRESS").unwrap_or_else(|_| String::from("nats://localhost:4222"));
+
+        let conf = NatsSinkConfig {
+            encoding: EncodingConfig::from(Encoding::Text).into(),
+            connection_name: "".to_owned(),
+            subject: subject.clone(),
+            url,
+            tls: None,
+            auth: None,
+            ignore_discovered_urls: Some(true),
+        };
+
+        let r = publish_and_check(conf).await;
+        assert!(
+            r.is_ok(),
+            "publish_and_check failed, expected Ok(()), got: {:?}",
             r
         );
     }
