@@ -354,6 +354,7 @@ leveldb-sys = { git = "https://github.com/vectordotdev/leveldb-sys.git", branch 
 chrono = { git = "https://github.com/vectordotdev/chrono.git", branch = "no-default-time" }
 # Adds `Status::is_reset` test, remove after the next version is released.
 h2 = { git = "https://github.com/hyperium/h2.git", rev = "f6aa3be6719270cd7b4094ee1940751b5f4ec88e" }
+nats = { git = "https://github.com/wjordan/nats.rs.git", branch = "no-discovery"}
 
 [features]
 # Default features for *-unknown-linux-gnu and *-apple-darwin
